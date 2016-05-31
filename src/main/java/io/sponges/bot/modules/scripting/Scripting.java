@@ -2,7 +2,6 @@ package io.sponges.bot.modules.scripting;
 
 import io.sponges.bot.api.module.Module;
 
-import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
@@ -15,11 +14,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Scripting extends Module {
 
-    private final List<Invocable> scripts = new CopyOnWriteArrayList<>();
     private final ScriptEngineManager manager = new ScriptEngineManager();
+    private final List<Script> scripts = new CopyOnWriteArrayList<>();
 
     public Scripting() {
-        super("Scripting", "1.0");
+        super("Scripting", "1.01");
     }
 
     @SuppressWarnings({"ResultOfMethodCallIgnored", "ConstantConditions"})
@@ -49,25 +48,29 @@ public class Scripting extends Module {
             } catch (ScriptException | FileNotFoundException e) {
                 e.printStackTrace();
             }
-            Invocable invocable = (Invocable) engine;
+            Script script = new Script(engine, file.getName());
+            scripts.add(script);
             try {
-                invocable.invokeFunction("onEnable");
+                script.onEnable();
             } catch (ScriptException | NoSuchMethodException e) {
+                e.printStackTrace();
+            }
+        }
+        getCommandManager().registerCommand(this, new ScriptsCommand(this));
+    }
+
+    @Override
+    public void onDisable() {
+        for (Script script : scripts) {
+            try {
+                script.onDisable();
+            } catch (ScriptException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    @Override
-    public void onDisable() {
-        for (Invocable script : scripts) {
-            try {
-                script.invokeFunction("onDisable");
-            } catch (ScriptException e) {
-                e.printStackTrace();
-            } catch (NoSuchMethodException ignored) {
-                // onDisable method is optional
-            }
-        }
+    public List<Script> getScripts() {
+        return scripts;
     }
 }
