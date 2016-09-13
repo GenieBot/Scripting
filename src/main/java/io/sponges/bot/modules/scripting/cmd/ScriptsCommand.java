@@ -1,7 +1,9 @@
-package io.sponges.bot.modules.scripting;
+package io.sponges.bot.modules.scripting.cmd;
 
 import io.sponges.bot.api.cmd.Command;
 import io.sponges.bot.api.cmd.CommandRequest;
+import io.sponges.bot.modules.scripting.Script;
+import io.sponges.bot.modules.scripting.Scripting;
 
 import java.util.Iterator;
 import java.util.List;

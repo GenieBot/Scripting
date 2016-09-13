@@ -1,6 +1,11 @@
 package io.sponges.bot.modules.scripting;
 
+import io.sponges.bot.api.Logger;
+import io.sponges.bot.api.cmd.Command;
+import io.sponges.bot.api.cmd.CommandManager;
 import io.sponges.bot.api.module.Module;
+import io.sponges.bot.modules.scripting.cmd.ReloadScriptsCommand;
+import io.sponges.bot.modules.scripting.cmd.ScriptsCommand;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -16,6 +21,7 @@ public class Scripting extends Module {
 
     private final ScriptEngineManager manager = new ScriptEngineManager();
     private final List<Script> scripts = new CopyOnWriteArrayList<>();
+    private final File directory = new File("scripts");
 
     public Scripting() {
         super("Scripting", "1.01");
@@ -24,23 +30,50 @@ public class Scripting extends Module {
     @SuppressWarnings({"ResultOfMethodCallIgnored", "ConstantConditions"})
     @Override
     public void onEnable() {
-        File directory = new File("scripts");
+        loadScripts(directory);
+        CommandManager commandManager = getCommandManager();
+        commandManager.registerCommand(this, new ScriptsCommand(this));
+        commandManager.registerCommand(this, new ReloadScriptsCommand(this));
+    }
+
+    @Override
+    public void onDisable() {
+        for (Script script : scripts) {
+            try {
+                script.onDisable();
+            } catch (ScriptException e) {
+                e.printStackTrace();
+            }
+        }
+        CommandManager commandManager = getCommandManager();
+        for (Command command : commandManager.getCommands(this)) {
+            String primaryName = command.getNames()[0];
+            if (primaryName.equals("scripts") || primaryName.endsWith("reloadscripts")) continue;
+            commandManager.unregisterCommand(command);
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    public void loadScripts(File directory) {
+        if (!scripts.isEmpty()) {
+            scripts.clear();
+        }
         if (!directory.exists()) {
-            getLogger().log("\"scripts\" directory does not exist! Creating the directory...");
+            getLogger().log(Logger.Type.DEBUG, "\"scripts\" directory does not exist! Creating the directory...");
             try {
                 directory.createNewFile();
-                getLogger().log("Created the \"scripts\" directory. Please populate it with scripts!");
+                getLogger().log(Logger.Type.INFO, "Created the \"scripts\" directory. Please populate it with scripts!");
             } catch (IOException e) {
-                getLogger().log("Could not create the \"scripts\" directory: " + e.getMessage());
+                getLogger().log(Logger.Type.WARNING, "Could not create the \"scripts\" directory: " + e.getMessage());
             }
             return;
         }
         if (!directory.isDirectory()) {
-            getLogger().log("\"scripts\" file is not a directory!");
+            getLogger().log(Logger.Type.WARNING, "\"scripts\" file is not a directory!");
             return;
         }
         for (File file : directory.listFiles()) {
-            getLogger().log("Loading \"" + file.getName() + "\"...");
+            getLogger().log(Logger.Type.INFO, "Loading \"" + file.getName() + "\"...");
             ScriptEngine engine = manager.getEngineByName("nashorn");
             engine.put("module", this);
             try {
@@ -56,21 +89,13 @@ public class Scripting extends Module {
                 e.printStackTrace();
             }
         }
-        getCommandManager().registerCommand(this, new ScriptsCommand(this));
-    }
-
-    @Override
-    public void onDisable() {
-        for (Script script : scripts) {
-            try {
-                script.onDisable();
-            } catch (ScriptException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     public List<Script> getScripts() {
         return scripts;
+    }
+
+    public File getDirectory() {
+        return directory;
     }
 }
